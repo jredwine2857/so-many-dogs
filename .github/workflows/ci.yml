@@ -26,10 +26,12 @@ jobs:
           npm ci --prefix server
 
       - name: Type-check client
-        run: npx --prefix client tsc --noEmit --project client/tsconfig.json
+        working-directory: client
+        run: npx tsc --noEmit
 
       - name: Type-check server
-        run: npx --prefix server tsc --noEmit --project server/tsconfig.json
+        working-directory: server
+        run: npx tsc --noEmit
 
       - name: Build client
         run: npm run build --prefix client
