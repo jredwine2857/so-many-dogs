@@ -1,0 +1,21 @@
+{
+  "name": "so-many-dogs-server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "smoke": "tsx scripts/smoke-test.ts"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^3.0.76",
+    "@colyseus/ws-transport": "^0.16.5",
+    "colyseus": "^0.16.5"
+  },
+  "devDependencies": {
+    "colyseus.js": "^0.16.22",
+    "tsx": "^4.16.5",
+    "typescript": "^5.5.4"
+  }
+}

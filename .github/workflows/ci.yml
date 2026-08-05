@@ -1,0 +1,55 @@
+name: CI
+
+# Type-checks both packages and runs the headless smoke test against a real
+# server, so a broken game can't reach main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: |
+          npm ci --prefix client
+          npm ci --prefix server
+
+      - name: Type-check client
+        run: npx --prefix client tsc --noEmit --project client/tsconfig.json
+
+      - name: Type-check server
+        run: npx --prefix server tsc --noEmit --project server/tsconfig.json
+
+      - name: Build client
+        run: npm run build --prefix client
+
+      - name: Start game server
+        run: |
+          npm start --prefix server &
+          echo $! > server.pid
+          # Wait for the health endpoint rather than sleeping a fixed amount.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:2567/healthz > /dev/null; then
+              echo "server up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server failed to start"; exit 1
+
+      - name: Smoke test
+        run: npm run smoke --prefix server
+
+      - name: Stop game server
+        if: always()
+        run: kill "$(cat server.pid)" || true

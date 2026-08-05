@@ -1,0 +1,53 @@
+name: Infra apply
+
+# Creates and changes real, billed AWS resources. Gated behind the
+# "production" GitHub Environment — add yourself as a required reviewer there
+# and every run will pause for your approval before it touches anything.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-apply.yml"
+  workflow_dispatch: # lets you run it by hand the very first time
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: infra-apply
+  cancel-in-progress: false # never interrupt an apply mid-flight
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.12.5
+
+      - name: Assume AWS role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init
+        run: tofu -chdir=infra init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Plan
+        run: tofu -chdir=infra plan -input=false -out=tfplan
+
+      - name: Apply
+        run: tofu -chdir=infra apply -input=false -auto-approve tfplan
+
+      - name: Show endpoints
+        run: |
+          echo "### Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Play: $(tofu -chdir=infra output -raw play_url)" >> $GITHUB_STEP_SUMMARY
+          echo "- Server: $(tofu -chdir=infra output -raw game_server_url)" >> $GITHUB_STEP_SUMMARY

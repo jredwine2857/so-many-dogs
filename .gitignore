@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+.terraform.lock.hcl.bak
+# Bootstrap keeps local state — it creates the remote backend itself, so it
+# can't store state there. Never commit it; it can contain account details.
+infra/bootstrap/terraform.tfstate*
+*.auto.tfvars
