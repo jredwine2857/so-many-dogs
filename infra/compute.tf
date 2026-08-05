@@ -61,14 +61,13 @@ resource "aws_iam_instance_profile" "instance" {
 
 # --- Instance ------------------------------------------------------------
 
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
+# Amazon publishes the current AL2023 AMI id as a public SSM parameter, which
+# is exact. A name wildcard is not: `al2023-ami-*-x86_64` also matches the
+# *minimal* variant, and picking one of those silently costs you the SSM
+# agent and the AWS CLI — so the instance never registers with SSM and can't
+# be deployed to at all.
+data "aws_ssm_parameter" "al2023" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 # The deploy script lives on the instance rather than in the SSM command, so
@@ -103,7 +102,9 @@ locals {
 }
 
 resource "aws_instance" "game" {
-  ami                    = data.aws_ami.al2023.id
+  # nonsensitive() because SSM parameter values are treated as secret by
+  # default, which would redact a public AMI id from every plan.
+  ami                    = nonsensitive(data.aws_ssm_parameter.al2023.value)
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.game.id]
