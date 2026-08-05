@@ -102,6 +102,10 @@ export class TraitAudio {
       case "working at the Dairy Bar": return this.iceCreamJingle(out, t0);
       case "playing video games": return this.videoGame(out, t0);
       case "getting drunk": return this.hiccup(out, t0);
+      case "cooking food": return this.cooking(out, t0);
+      case "scolding people": return this.scold(out, t0);
+      case "turning into a monkey and eating bananas": return this.monkey(out, t0);
+      case "asking Hey a bunch": return this.hey(out, t0);
       default: return 0;
     }
   }
@@ -398,6 +402,107 @@ export class TraitAudio {
     o.frequency.setValueAtTime(988, t + 0.42);
     o.frequency.setValueAtTime(1319, t + 0.5);
     return 0.9;
+  }
+
+  private cooking(out: GainNode, t: number) {
+    // Sizzle: sustained band-limited noise, plus a couple of pan clatters.
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise!;
+    src.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 4200;
+    bp.Q.value = 0.8;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.25);
+    g.gain.setValueAtTime(0.5, t + 1.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    src.connect(bp).connect(g).connect(out);
+    src.start(t);
+    src.stop(t + 1.7);
+
+    // metal on metal
+    this.osc("triangle", 900, t + 0.5, 0.09, out, 0.16);
+    this.osc("triangle", 1350, t + 0.56, 0.07, out, 0.11);
+    this.osc("triangle", 780, t + 1.15, 0.1, out, 0.13);
+    return 1.7;
+  }
+
+  private scold(out: GainNode, t: number) {
+    // Three clipped, falling syllables — the cadence of "do not DO that".
+    // Lower and tighter than a yell: telling off, not shouting across a street.
+    const syllables = [
+      { at: 0, dur: 0.2, f0: [300, 250] },
+      { at: 0.28, dur: 0.18, f0: [280, 235] },
+      { at: 0.54, dur: 0.34, f0: [330, 260, 210] },
+    ];
+    syllables.forEach((s) => {
+      this.voice(out, t + s.at, {
+        dur: s.dur,
+        f0: s.f0,
+        formants: [
+          [620, 1.0],
+          [1180, 0.7],
+          [2500, 0.25],
+        ],
+        gain: 0.72,
+        vibrato: 3,
+        breath: 0.05,
+      });
+    });
+    return 1.1;
+  }
+
+  private monkey(out: GainNode, t: number) {
+    // "ooh ooh ah ah" — hooting is a high, narrow "oo" formant; the closing
+    // calls open out to "ah" and drop in pitch.
+    const calls = [
+      { at: 0, dur: 0.16, f0: [520, 700, 620], formants: [[380, 1.0], [900, 0.4]] },
+      { at: 0.24, dur: 0.16, f0: [560, 760, 660], formants: [[400, 1.0], [950, 0.4]] },
+      { at: 0.52, dur: 0.22, f0: [420, 330], formants: [[760, 1.0], [1300, 0.6], [2600, 0.2]] },
+      { at: 0.8, dur: 0.22, f0: [400, 300], formants: [[730, 1.0], [1250, 0.6], [2500, 0.2]] },
+    ];
+    calls.forEach((c) => {
+      this.voice(out, t + c.at, {
+        dur: c.dur,
+        f0: c.f0,
+        formants: c.formants as [number, number][],
+        gain: 0.75,
+        vibrato: 10,
+        breath: 0.06,
+      });
+    });
+    return 1.2;
+  }
+
+  private hey(out: GainNode, t: number) {
+    // "Hey!... hey!... hey?" — same word three times, the last one lilting up
+    // because she has not got an answer yet.
+    const calls = [
+      { at: 0, f0: [340, 420, 380] },
+      { at: 0.5, f0: [330, 410, 370] },
+      { at: 1.0, f0: [320, 400, 470] }, // rising = questioning
+    ];
+    calls.forEach((c) => {
+      // breathy "h" onset before the vowel
+      this.noiseBurst(t + c.at, 0.05, out, "highpass", 2200, 0.7, 0.22);
+      this.voice(out, t + c.at + 0.03, {
+        dur: 0.26,
+        f0: c.f0,
+        // "eh" as in hey
+        formants: [
+          [590, 1.0],
+          [1840, 0.7],
+          [2500, 0.25],
+        ],
+        gain: 0.7,
+        vibrato: 5,
+        breath: 0.05,
+      });
+    });
+    return 1.5;
   }
 
   private hiccup(out: GainNode, t: number) {

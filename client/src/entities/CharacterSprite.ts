@@ -112,6 +112,10 @@ export class CharacterSprite {
     } else if (accessory === "tutu") {
       g.fillStyle(0xffd9e8, 0.95);
       g.fillEllipse(0, -20, 32, 11);
+    } else if (accessory === "apron") {
+      g.fillStyle(0xf2ede2, 1);
+      g.fillRoundedRect(-7.5, -36, 15, 20, 2);
+      g.fillRect(-6, -41, 12, 5);
     }
 
     // neck + head
@@ -138,6 +142,10 @@ export class CharacterSprite {
     if (look.accessory === "headband") {
       g.fillStyle(0xf2f6fb, 1);
       g.fillRect(-9, -58.5, 18, 3);
+    } else if (look.accessory === "cap") {
+      g.fillStyle(look.top, 1);
+      g.fillEllipse(0, -59, 19.5, 10);
+      g.fillRoundedRect(2, -60.5, 13, 3.5, 1.5); // brim
     }
 
     // face
@@ -349,6 +357,52 @@ export class CharacterSprite {
         RA.rotation = 1.6 + Math.sin(scoop) * 0.7;
         RA.setPosition(9.5 + Math.cos(scoop) * 2, -38);
         LA.rotation = -0.9;
+        break;
+      }
+      case "cooking food": {
+        // Stirring a pot: one arm circling, the other steadying it.
+        const stir = p * 5;
+        this.container.rotation = 0.08;
+        B.setPosition(0, 1);
+        RA.rotation = 1.5 + Math.sin(stir) * 0.45;
+        RA.setPosition(9.5 + Math.cos(stir) * 2.5, -38 + Math.sin(stir) * 1.5);
+        LA.rotation = -1.35;
+        break;
+      }
+      case "scolding people": {
+        // Finger wagging, leaning in — full teacher energy.
+        const wag = Math.sin(p * 8);
+        this.container.rotation = 0.14;
+        B.setPosition(1.5, 0);
+        RA.rotation = 2.6 + wag * 0.25;
+        LA.rotation = -0.5;
+        L.rotation = 0.15;
+        R.rotation = -0.2;
+        break;
+      }
+      case "turning into a monkey and eating bananas": {
+        // Hunched monkey bounce, arms swinging low and wide.
+        const hop = Math.abs(Math.sin(p * 4.2));
+        const swing = Math.sin(p * 4.2);
+        this.container.rotation = 0.22 + swing * 0.06;
+        B.setPosition(0, 6 - hop * 4);
+        L.setPosition(-4.5, -16 - hop * 4);
+        R.setPosition(4.5, -16 - hop * 4);
+        L.rotation = -0.55 + swing * 0.2;
+        R.rotation = -0.55 - swing * 0.2;
+        LA.setPosition(-10.5, -38 - hop * 4);
+        RA.setPosition(10.5, -38 - hop * 4);
+        LA.rotation = -2.4 + swing * 0.6;
+        RA.rotation = 2.4 + swing * 0.6;
+        break;
+      }
+      case "asking Hey a bunch": {
+        // Waving to get your attention, over and over.
+        const wave = Math.sin(p * 6.5);
+        this.container.rotation = wave * 0.05;
+        B.setPosition(0, Math.abs(wave) * -1);
+        RA.rotation = 2.75 + wave * 0.35;
+        LA.rotation = -0.4;
         break;
       }
       default: {

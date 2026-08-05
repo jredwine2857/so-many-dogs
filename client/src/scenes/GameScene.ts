@@ -7,6 +7,7 @@ import { VisitorView, SyncedVisitor } from "../entities/VisitorView";
 import { PetSprite } from "../entities/PetSprite";
 import { TraitAudio } from "../audio/TraitAudio";
 import { CharacterSelect } from "../ui/CharacterSelect";
+import { TouchControls } from "../ui/TouchControls";
 import { drawBuilding, drawHome, drawTerrain } from "../world/render";
 
 const VIEW_W = 1024;
@@ -70,6 +71,8 @@ export class GameScene extends Phaser.Scene {
   private nextTraitSoundAt = new Map<string, number>();
   private keyMute!: Phaser.Input.Keyboard.Key;
   private muteText!: Phaser.GameObjects.Text;
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private touch: TouchControls | null = null;
 
   private moneyText!: Phaser.GameObjects.Text;
   private whoText!: Phaser.GameObjects.Text;
@@ -126,6 +129,18 @@ export class GameScene extends Phaser.Scene {
     this.keyWalk = kb.addKey("TWO");
     this.keyPlay = kb.addKey("THREE");
     this.keyMute = kb.addKey("M");
+    this.cursors = kb.createCursorKeys(); // arrow keys alongside WASD
+
+    // Touch controls appear on devices that actually have a touchscreen.
+    // Desktop players never see them.
+    if (this.sys.game.device.input.touch) {
+      this.touch = new TouchControls(this, VIEW_W, VIEW_H, (action) => {
+        if (!this.localCharacterId || this.gameOver) return;
+        if (action === "work") this.room.send("work");
+        else this.room.send("care", { action });
+      });
+      this.touch.setVisible(false); // hidden until a character is chosen
+    }
 
     this.buildHud();
 
@@ -222,7 +237,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(DEPTH_HUD + 1);
 
     this.add
-      .text(16, 14, "WASD move · SPACE work · 1 feed · 2 walk · 3 play", {
+      .text(16, 14, "WASD or arrows move · SPACE work · 1 feed · 2 walk · 3 play", {
         fontFamily: "system-ui, sans-serif",
         fontSize: "12px",
         color: "#cfe0ff",
@@ -284,6 +299,7 @@ export class GameScene extends Phaser.Scene {
       if (this.localCharacterId) {
         this.select.hide();
         this.select = null;
+        this.touch?.setVisible(true);
       } else {
         const taken = new Set<string>();
         state.characters.forEach((c: SyncedCharacter, id: string) => {
@@ -404,11 +420,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private sendInput() {
+    // WASD, arrow keys and the on-screen d-pad are all equivalent.
+    const t = this.touch?.state;
     const input: InputState = {
-      up: this.keyUp.isDown,
-      down: this.keyDown.isDown,
-      left: this.keyLeft.isDown,
-      right: this.keyRight.isDown,
+      up: this.keyUp.isDown || !!this.cursors.up?.isDown || !!t?.up,
+      down: this.keyDown.isDown || !!this.cursors.down?.isDown || !!t?.down,
+      left: this.keyLeft.isDown || !!this.cursors.left?.isDown || !!t?.left,
+      right: this.keyRight.isDown || !!this.cursors.right?.isDown || !!t?.right,
     };
     if (
       input.up !== this.lastSentInput.up ||

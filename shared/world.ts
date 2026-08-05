@@ -19,7 +19,7 @@ export function rectCenter(rect: Rect) {
 
 // Framework-agnostic layout (no Phaser types — the plain-Node server
 // imports this too). The client turns these rects into drawn buildings.
-export const WORLD = { width: 2500, height: 1320 };
+export const WORLD = { width: 2800, height: 1520 };
 
 // Main street running across the middle of town, separating the commercial
 // district (north) from the residential blocks (south).
@@ -32,7 +32,8 @@ export const WALK_AREA: Rect = { x: 80, y: 590, width: WORLD.width - 160, height
 export type BuildingStyle =
   | "office" | "hospital" | "church" | "realty" | "boutique"
   | "pharma" | "salon" | "concert" | "dojo" | "ballet"
-  | "bank" | "workshop" | "machineyard" | "dairybar";
+  | "bank" | "workshop" | "machineyard" | "dairybar"
+  | "school" | "ballpark";
 
 export interface JobSite {
   career: string;
@@ -46,7 +47,7 @@ const JOB_W = 290;
 const JOB_H = 200;
 const ROW_A_Y = 70;
 const ROW_B_Y = 320;
-const JOB_X = [40, 370, 700, 1030, 1360, 1690, 2020];
+const JOB_X = [40, 370, 700, 1030, 1360, 1690, 2020, 2350];
 
 export const JOB_SITES: JobSite[] = [
   { career: CAREERS.it,          label: "Northgate Data Center", icon: "💻", style: "office",      rect: { x: JOB_X[0], y: ROW_A_Y, width: JOB_W, height: JOB_H } },
@@ -63,6 +64,8 @@ export const JOB_SITES: JobSite[] = [
   { career: CAREERS.karate,      label: "Iron Path Dojo",        icon: "🥋", style: "dojo",        rect: { x: JOB_X[3], y: ROW_B_Y, width: JOB_W, height: JOB_H } },
   { career: CAREERS.ballet,      label: "Swan Academy",          icon: "🩰", style: "ballet",      rect: { x: JOB_X[4], y: ROW_B_Y, width: JOB_W, height: JOB_H } },
   { career: CAREERS.machinery,   label: "Redline Equipment Yard", icon: "🚜", style: "machineyard", rect: { x: JOB_X[5], y: ROW_B_Y, width: JOB_W, height: JOB_H } },
+  { career: CAREERS.education,   label: "Riverbend Elementary",  icon: "🏫", style: "school",      rect: { x: JOB_X[7], y: ROW_A_Y, width: JOB_W, height: JOB_H } },
+  { career: CAREERS.baseball,    label: "Sandlot Ballpark",      icon: "⚾", style: "ballpark",    rect: { x: JOB_X[7], y: ROW_B_Y, width: JOB_W, height: JOB_H } },
 ];
 
 // Not a job — a landmark, because Ambria's annoying trait is bailing on
@@ -80,15 +83,14 @@ export interface CharacterSlot {
 
 const HOME_W = 235;
 const HOME_H = 175;
-const HOME_ROW_A_Y = 790;
-const HOME_ROW_B_Y = 1010;
+const HOME_ROW_Y = [790, 1010, 1230];
 const HOME_X = [40, 305, 570, 835, 1100, 1365, 1630];
 
+// Homes fill left-to-right, wrapping onto the next street.
 function homeRect(index: number): Rect {
-  const inRowA = index < HOME_X.length;
-  const x = HOME_X[inRowA ? index : index - HOME_X.length];
-  const y = inRowA ? HOME_ROW_A_Y : HOME_ROW_B_Y;
-  return { x, y, width: HOME_W, height: HOME_H };
+  const row = Math.floor(index / HOME_X.length);
+  const col = index % HOME_X.length;
+  return { x: HOME_X[col], y: HOME_ROW_Y[row], width: HOME_W, height: HOME_H };
 }
 
 // Every character always exists in the world — claimed ones are driven by a

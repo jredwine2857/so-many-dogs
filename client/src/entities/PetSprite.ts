@@ -11,13 +11,24 @@ export class PetSprite {
   private body: Phaser.GameObjects.Graphics;
   private wagPhase = Math.random() * Math.PI * 2;
   private species: PetDef["species"];
+  private ghost = false;
+  private floatPhase = Math.random() * Math.PI * 2;
+  private baseY = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, pet: PetDef) {
     this.species = pet.species;
+    this.ghost = !!pet.ghost;
 
     const shadow = scene.add.graphics();
-    shadow.fillStyle(0x000000, 0.2);
-    shadow.fillEllipse(0, 1, pet.species === "guineaPig" ? 26 : 34, 9);
+    if (this.ghost) {
+      // Ghosts don't cast a shadow — they hover instead, so a soft glow
+      // pooled underneath sells "not touching the ground".
+      shadow.fillStyle(0xbfe0f5, 0.22);
+      shadow.fillEllipse(0, 3, 40, 12);
+    } else {
+      shadow.fillStyle(0x000000, 0.2);
+      shadow.fillEllipse(0, 1, pet.species === "guineaPig" ? 26 : 34, 9);
+    }
 
     this.tail = scene.add.graphics();
     this.drawTail(this.tail, pet);
@@ -30,6 +41,19 @@ export class PetSprite {
 
     this.container = scene.add.container(x, y, [shadow, this.tail, this.body]);
     this.container.setScale(SIZE_SCALE[pet.size]);
+    this.baseY = y;
+    if (this.ghost) this.container.setAlpha(0.6);
+  }
+
+  // Legs replaced by a wispy trailing tail, the same visual language as the
+  // ghost grandparents so it reads as "spirit" and not "invisible dog".
+  private drawGhostTrail(g: Phaser.GameObjects.Graphics, pet: PetDef) {
+    g.fillStyle(pet.coat, 0.85);
+    const hemY = -6;
+    for (let i = 0; i < 6; i++) {
+      const x0 = -15 + i * 5.5;
+      g.fillTriangle(x0, hemY, x0 + 5.5, hemY, x0 + 2.75, hemY + 7 + (i % 2) * 4);
+    }
   }
 
   private drawTail(g: Phaser.GameObjects.Graphics, pet: PetDef) {
@@ -48,8 +72,12 @@ export class PetSprite {
     const { coat, fluffy, floppyEars } = pet;
     const dark = Phaser.Display.Color.ValueToColor(coat).darken(18).color;
 
-    g.fillStyle(dark, 1);
-    [-11, -4, 4, 10].forEach((lx) => g.fillRoundedRect(lx, -9, 4.5, 9, 2));
+    if (this.ghost) {
+      this.drawGhostTrail(g, pet);
+    } else {
+      g.fillStyle(dark, 1);
+      [-11, -4, 4, 10].forEach((lx) => g.fillRoundedRect(lx, -9, 4.5, 9, 2));
+    }
 
     g.fillStyle(coat, 1);
     g.fillEllipse(0, -16, 30, 16);
@@ -150,6 +178,16 @@ export class PetSprite {
 
   update(delta: number) {
     this.wagPhase += (delta / 1000) * (this.species === "dog" ? 7 : 3);
+
+    if (this.ghost) {
+      // Drift up and down instead of standing on the ground.
+      this.floatPhase += (delta / 1000) * 1.7;
+      this.container.y = this.baseY - 10 - Math.sin(this.floatPhase) * 4;
+      this.tail.rotation = Math.sin(this.wagPhase * 0.5) * 0.3;
+      this.body.y = Math.sin(this.floatPhase * 0.8) * 0.8;
+      return;
+    }
+
     if (this.species === "guineaPig") {
       // no tail to wag — just a small breathing bob
       this.body.y = Math.sin(this.wagPhase) * 0.5;

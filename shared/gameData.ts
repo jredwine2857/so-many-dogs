@@ -3,7 +3,7 @@
 // how fast a pet's meters decay.
 
 export type HairStyle = "buzz" | "short" | "long" | "wavy" | "ponytail" | "bun";
-export type Accessory = "none" | "tutu" | "beltGi" | "headband" | "tie" | "scarf";
+export type Accessory = "none" | "tutu" | "beltGi" | "headband" | "tie" | "scarf" | "apron" | "cap";
 
 export interface Appearance {
   skin: number;
@@ -40,6 +40,10 @@ export interface PetDef {
   coat: number;
   fluffy: boolean;
   floppyEars: boolean;
+  // Pets who have passed away come back as ghosts. Purely visual — they get
+  // hungry, need walks and can still be lost through neglect exactly like
+  // the living ones, so nobody gets an easier game for picking one.
+  ghost?: boolean;
   // Quirk multipliers, straight from GAME_DESIGN.md §5.
   hungerDecayMultiplier: number;
   bladderDecayMultiplier: number;
@@ -63,6 +67,8 @@ export const CAREERS = {
   finance: "Finance",
   maintenance: "Building Maintenance",
   machinery: "Heavy Machinery",
+  education: "Education",
+  baseball: "Baseball",
 } as const;
 
 export const CHARACTERS: Record<string, CharacterDef> = {
@@ -206,6 +212,56 @@ export const CHARACTERS: Record<string, CharacterDef> = {
     pronoun: "she",
     appearance: { skin: 0xecc0a0, hair: 0x6b4326, hairStyle: "ponytail", top: 0xe8b13f, bottom: 0x4a4a52, shoes: 0x3a2f28, accessory: "headband", child: false },
   },
+  stephen: {
+    id: "stephen",
+    name: "Stephen",
+    career: CAREERS.it,
+    annoyingTrait: "cooking food",
+    petId: "hope",
+    accent: 0xe07a4f,
+    pronoun: "he",
+    appearance: { skin: 0xe8b48c, hair: 0x3f2e20, hairStyle: "short", top: 0xd9694a, bottom: 0x3a4150, shoes: 0x2b2118, accessory: "apron", child: false },
+  },
+  mari: {
+    id: "mari",
+    name: "Mari",
+    career: CAREERS.education,
+    annoyingTrait: "scolding people",
+    petId: "benji",
+    accent: 0x7ab5a0,
+    pronoun: "she",
+    appearance: { skin: 0xecc0a0, hair: 0x4a3524, hairStyle: "bun", top: 0x5f9e8a, bottom: 0x3f4654, shoes: 0x33383f, accessory: "scarf", child: false },
+  },
+  xavier: {
+    id: "xavier",
+    name: "Xavier",
+    career: CAREERS.baseball,
+    annoyingTrait: "turning into a monkey and eating bananas",
+    petId: "fritzie",
+    accent: 0x6fa8d4,
+    pronoun: "he",
+    appearance: { skin: 0xdda57c, hair: 0x241c15, hairStyle: "short", top: 0x4f86b8, bottom: 0xd8d8dc, shoes: 0x2b3140, accessory: "cap", child: true },
+  },
+  mia: {
+    id: "mia",
+    name: "Mia",
+    career: CAREERS.fashion,
+    annoyingTrait: "asking Hey a bunch",
+    petId: "tiffany",
+    accent: 0xc98fd6,
+    pronoun: "she",
+    appearance: { skin: 0xf0c9a4, hair: 0x1f1a17, hairStyle: "long", top: 0xb87ad0, bottom: 0x4a3d6b, shoes: 0x8a5fb5, accessory: "none", child: false },
+  },
+  parker: {
+    id: "parker",
+    name: "Parker",
+    career: CAREERS.it,
+    annoyingTrait: "playing video games",
+    petId: "jewel",
+    accent: 0x8fd46f,
+    pronoun: "he",
+    appearance: { skin: 0xe8b48c, hair: 0x5a4028, hairStyle: "buzz", top: 0x6aa84f, bottom: 0x2f3440, shoes: 0x22262e, accessory: "none", child: false },
+  },
 };
 
 // Roster order — also the order joining clients claim characters in.
@@ -213,6 +269,7 @@ export const CHARACTER_ORDER = [
   "jason", "jane", "kayli", "jonathan", "payton", "brooklin",
   "kelli", "grace", "tomas", "junior", "isla",
   "ambria", "michael", "jordyn",
+  "stephen", "mari", "xavier", "mia", "parker",
 ];
 
 export const PETS: Record<string, PetDef> = {
@@ -235,6 +292,14 @@ export const PETS: Record<string, PetDef> = {
   bynx:     { id: "bynx",     name: "Bynx",       species: "cat",       size: "medium", coat: 0x5a5f6b, fluffy: false, floppyEars: false, hungerDecayMultiplier: 1.2, bladderDecayMultiplier: 0.8, energyDecayMultiplier: 1.8, happinessVolatility: 1 },
   meowmeow: { id: "meowmeow", name: "Meow Meow",  species: "cat",       size: "small",  coat: 0xf0e6d2, fluffy: true,  floppyEars: false, hungerDecayMultiplier: 1.0, bladderDecayMultiplier: 0.9, energyDecayMultiplier: 1.0, happinessVolatility: 6 },
   chip:     { id: "chip",     name: "Chip",       species: "guineaPig", size: "small",  coat: 0xc98a5e, fluffy: true,  floppyEars: false, hungerDecayMultiplier: 2.0, bladderDecayMultiplier: 1.5, energyDecayMultiplier: 0.5, happinessVolatility: 2 },
+
+  hope:     { id: "hope",     name: "Hope",       species: "dog",       size: "large",  coat: 0xd8b98a, fluffy: true,  floppyEars: true,  hungerDecayMultiplier: 1.2, bladderDecayMultiplier: 1.0, energyDecayMultiplier: 1.2, happinessVolatility: 0 },
+
+  // The ones we lost. Same rules as everyone else, just translucent.
+  benji:    { id: "benji",    name: "Benji",      species: "dog",       size: "small",  coat: 0xdfe8f5, fluffy: true,  floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 0.9, energyDecayMultiplier: 0.9, happinessVolatility: 1, ghost: true },
+  fritzie:  { id: "fritzie",  name: "Fritzie",    species: "dog",       size: "small",  coat: 0xe6dff5, fluffy: false, floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 1.1, energyDecayMultiplier: 1.0, happinessVolatility: 1, ghost: true },
+  tiffany:  { id: "tiffany",  name: "Tiffany",    species: "dog",       size: "medium", coat: 0xf2e6f0, fluffy: true,  floppyEars: false, hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 0.9, energyDecayMultiplier: 1.1, happinessVolatility: 1, ghost: true },
+  jewel:    { id: "jewel",    name: "Jewel",      species: "dog",       size: "medium", coat: 0xdff0f5, fluffy: false, floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 1.0, energyDecayMultiplier: 0.9, happinessVolatility: 1, ghost: true },
 };
 
 // Grandparents. They aren't playable — no home, no pet, no job, and they

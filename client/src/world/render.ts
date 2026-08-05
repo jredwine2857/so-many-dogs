@@ -68,13 +68,14 @@ export function drawTerrain(scene: Phaser.Scene) {
 
   // park east of the residential blocks, with a pond
   decor.fillStyle(0x4d8f4a, 1);
-  decor.fillRoundedRect(1940, 790, 510, 450, 18);
+  decor.fillRoundedRect(1940, 790, 800, 640, 18);
   decor.fillStyle(0x3f7fbf, 1);
-  decor.fillEllipse(2190, 1000, 230, 140);
+  decor.fillEllipse(2300, 1060, 260, 160);
   decor.fillStyle(0x5aa0d6, 1);
-  decor.fillEllipse(2190, 996, 210, 122);
+  decor.fillEllipse(2300, 1056, 238, 142);
   [
-    [2010, 860], [2130, 830], [2360, 870], [2390, 1150], [2020, 1180], [2150, 1200],
+    [2010, 860], [2130, 830], [2560, 870], [2680, 1150], [2020, 1180],
+    [2150, 1330], [2450, 1370], [2700, 900],
   ].forEach(([x, y]) => tree(decor, x, y));
 
   // street trees along the sidewalks
@@ -323,6 +324,55 @@ export function drawBuilding(scene: Phaser.Scene, site: JobSite) {
       g.fillTriangle(cx + 128, y + h - 80, cx + 152, y + h - 78, cx + 136, y + h - 58);
       break;
     }
+    case "school": {
+      g.fillStyle(0xc9563f, 1); // red brick schoolhouse
+      g.fillRoundedRect(x, bodyY, w, bodyH, 4);
+      g.fillStyle(0x8f3a2b, 1);
+      g.fillTriangle(x - 12, bodyY + 4, cx, y - 10, x + w + 12, bodyY + 4);
+      // bell tower
+      g.fillStyle(0xe8dcc4, 1);
+      g.fillRect(cx - 16, y - 46, 32, 42);
+      g.fillStyle(0x8f3a2b, 1);
+      g.fillTriangle(cx - 20, y - 44, cx, y - 74, cx + 20, y - 44);
+      g.fillStyle(0xe8c14a, 1);
+      g.fillCircle(cx, y - 26, 7);
+      // classroom windows
+      g.fillStyle(0xbfe0f0, 0.95);
+      for (let c = 0; c < 5; c++) {
+        g.fillRect(x + 22 + c * 52, bodyY + 34, 36, 30);
+        g.fillRect(x + 22 + c * 52, bodyY + 76, 36, 30);
+      }
+      // flagpole
+      g.fillStyle(0x9aa6b5, 1);
+      g.fillRect(x + 16, y + h - 84, 4, 84);
+      g.fillStyle(0x3b6fd4, 1);
+      g.fillRect(x + 20, y + h - 84, 26, 16);
+      break;
+    }
+    case "ballpark": {
+      // open diamond rather than a building
+      g.fillStyle(0x5c9e54, 1);
+      g.fillRoundedRect(x, bodyY - 10, w, bodyH + 10, 6);
+      // infield dirt
+      g.fillStyle(0xb5875a, 1);
+      g.fillTriangle(cx, y + h - 22, cx - 92, y + h - 96, cx + 92, y + h - 96);
+      g.fillStyle(0x5c9e54, 1);
+      g.fillTriangle(cx, y + h - 40, cx - 62, y + h - 92, cx + 62, y + h - 92);
+      // bases + mound
+      g.fillStyle(0xf2f6fb, 1);
+      g.fillRect(cx - 4, y + h - 28, 8, 8);
+      g.fillRect(cx - 96, y + h - 100, 8, 8);
+      g.fillRect(cx + 88, y + h - 100, 8, 8);
+      g.fillCircle(cx, y + h - 70, 7);
+      // backstop fence
+      g.lineStyle(2, 0x9aa6b5, 0.9);
+      for (let i = 0; i <= 8; i++) g.lineBetween(cx - 60 + i * 15, y + h - 8, cx - 60 + i * 15, y + h - 40);
+      g.lineBetween(cx - 60, y + h - 40, cx + 60, y + h - 40);
+      // bleachers
+      g.fillStyle(0x8a8f98, 1);
+      for (let r = 0; r < 3; r++) g.fillRect(x + 14, bodyY + 16 + r * 12, 92, 8);
+      break;
+    }
     case "dairybar": {
       // little roadside ice cream stand
       g.fillStyle(0xf7f2e4, 1);
@@ -374,7 +424,7 @@ export function drawBuilding(scene: Phaser.Scene, site: JobSite) {
 
   // Front door — skipped for the open equipment lot and the walk-up stand,
   // which have no building face to put one on.
-  if (site.style !== "machineyard" && site.style !== "dairybar") {
+  if (site.style !== "machineyard" && site.style !== "dairybar" && site.style !== "ballpark") {
     g.fillStyle(0x3a2f28, 1);
     g.fillRoundedRect(cx - 20, y + h - 40, 40, 40, 3);
     g.fillStyle(0xe8d98a, 1);

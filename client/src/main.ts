@@ -33,6 +33,13 @@ async function boot() {
     height: 640,
     backgroundColor: "#4a6b3f",
     pixelArt: false,
+    // Letterbox the fixed 1024x640 view into whatever screen it lands on, so
+    // phones get the whole board instead of a cropped corner.
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    input: { activePointers: 3 }, // move and tap an action at the same time
     // Trait sounds run through our own Web Audio graph (see TraitAudio), so
     // Phaser's sound manager would only add a second, unused AudioContext —
     // and it's the one that trips the browser's "not allowed to start"
