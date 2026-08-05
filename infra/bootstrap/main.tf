@@ -147,6 +147,10 @@ data "aws_iam_policy_document" "ci" {
       "ssm:SendCommand",
       "ssm:GetCommandInvocation",
       "ssm:DescribeInstanceInformation",
+      # Reads Amazon's public AMI-id parameters, which is how the instance
+      # pins its image (see compute.tf).
+      "ssm:GetParameter",
+      "ssm:GetParameters",
       "logs:*",
       "s3:*",
     ]
