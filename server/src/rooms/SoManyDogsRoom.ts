@@ -94,16 +94,34 @@ export class SoManyDogsRoom extends Room<RoomState> {
       if (characterId && msg?.action) this.tryCare(characterId, msg.action);
     });
 
+    this.onMessage("selectCharacter", (client, msg: { characterId?: string }) => {
+      if (msg?.characterId) this.trySelectCharacter(client, msg.characterId);
+    });
+
     this.setSimulationInterval((deltaMs) => this.tick(deltaMs), TICK_MS);
   }
 
-  onJoin(client: Client) {
-    const characterId = CHARACTER_ORDER.find((id) => this.state.characters.get(id)!.controlledBy === "");
-    if (!characterId) {
-      client.leave();
+  // Players now choose who they want to be, so joining claims nothing. They
+  // watch the town until they send "selectCharacter".
+  onJoin(_client: Client) {}
+
+  private trySelectCharacter(client: Client, characterId: string) {
+    if (this.state.gameOver) return;
+    if (this.characterOf.has(client.sessionId)) return; // already playing
+    const character = this.state.characters.get(characterId);
+    if (!character) return;
+
+    // Someone else may have grabbed this one a moment ago — the server is the
+    // arbiter, so tell the loser to pick again rather than silently failing.
+    if (character.controlledBy !== "") {
+      client.send("selectionRejected", { characterId, reason: "taken" });
       return;
     }
 
+    this.claimCharacter(client, characterId);
+  }
+
+  private claimCharacter(client: Client, characterId: string) {
     const character = this.state.characters.get(characterId)!;
     const slot = slotFor(characterId);
     character.controlledBy = client.sessionId;

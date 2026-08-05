@@ -86,6 +86,12 @@ export class CharacterView {
 
   render(state: SyncedCharacter, delta: number) {
     const moving = Math.abs(state.x - this.prevX) > 0.15 || Math.abs(state.y - this.prevY) > 0.15;
+
+    // Act out the trait whenever they're doing it — a frozen player mid-derail
+    // or an idle NPC paused in the street. Walking NPCs just walk.
+    const doingTrait = state.derailed || (state.controlledBy === "" && !!state.activity);
+    this.sprite.setTraitAnimation(doingTrait && !state.eliminated ? CHARACTERS[state.characterId].annoyingTrait : null);
+
     this.sprite.setPosition(state.x, state.y);
     this.sprite.update(delta, moving && !state.working);
     this.sprite.setAlpha(state.eliminated ? 0.25 : state.derailed ? 0.55 : 1);

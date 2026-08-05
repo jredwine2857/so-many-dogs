@@ -72,7 +72,27 @@ async function main() {
   const clientB = new Client(ENDPOINT);
   const roomB = await clientB.joinById(roomA.roomId);
   roomB.onMessage("gift", () => {}); // silence "not registered" noise
+  const rejections: any[] = [];
+  roomB.onMessage("selectionRejected", (msg: any) => rejections.push(msg));
   await sleep(600);
+
+  // --- character selection -------------------------------------------------
+  console.log("Character selection");
+  check("joining claims nobody", roomA.state.characters.size > 0 && ![...CHARACTER_SLOTS].some((s) => charOf(roomA, s.characterId).controlledBy !== ""));
+
+  roomA.send("selectCharacter", { characterId: "jason" });
+  await sleep(500);
+  check("player A got the character they picked", charOf(roomA, "jason").controlledBy === roomA.sessionId);
+
+  // B wants the same one — the server has to refuse and say so.
+  roomB.send("selectCharacter", { characterId: "jason" });
+  await sleep(500);
+  check("a taken character is refused", rejections.length === 1 && rejections[0].characterId === "jason", JSON.stringify(rejections));
+  check("the refusal did not steal the character", charOf(roomA, "jason").controlledBy === roomA.sessionId);
+
+  roomB.send("selectCharacter", { characterId: "jane" });
+  await sleep(500);
+  check("player B got a different character", charOf(roomA, "jane").controlledBy === roomB.sessionId);
 
   // --- roster ------------------------------------------------------------
   const rosterSize = CHARACTER_SLOTS.length;
@@ -205,7 +225,11 @@ async function main() {
 
   let sawActive = false;
   let pairTogether = true;
-  for (let i = 0; i < 120; i++) {
+  // Must outlast a full cycle: a pair can be away for up to visitorHiddenMax
+  // (90s) and then takes another ~11s to hand anything over. A 60s window
+  // could legitimately catch neither, which made this check flaky.
+  const maxWaitMs = TUNING.visitorHiddenMaxMs + TUNING.visitorFirstGiftMaxMs + 20_000;
+  for (let i = 0; i < maxWaitMs / 500; i++) {
     await sleep(500);
     for (const pair of VISITOR_PAIRS) {
       const leader = roomA.state.visitors.get(pair.leaderId)!;

@@ -17,6 +17,8 @@ export class CharacterSprite {
   private walkPhase = 0;
   private idlePhase = Math.random() * Math.PI * 2;
   private lastX: number;
+  private traitAnim: string | null = null;
+  private traitPhase = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, look: Appearance) {
     this.lastX = x;
@@ -157,8 +159,41 @@ export class CharacterSprite {
     this.container.setPosition(x, y);
   }
 
+  /**
+   * Play a trait animation instead of the walk/idle cycle. Pass null to go
+   * back to normal. Anything unrecognised falls back to idle rather than
+   * freezing the character mid-pose.
+   */
+  setTraitAnimation(trait: string | null) {
+    if (trait === this.traitAnim) return;
+    this.traitAnim = trait;
+    this.traitPhase = 0;
+    if (trait === null) this.resetPose();
+  }
+
+  private resetPose() {
+    this.container.rotation = 0;
+    this.body.setPosition(0, 0);
+    this.body.rotation = 0;
+    [this.leftLeg, this.rightLeg].forEach((l, i) => {
+      l.rotation = 0;
+      l.setPosition(i === 0 ? -4.5 : 4.5, -20);
+    });
+    [this.leftArm, this.rightArm].forEach((a, i) => {
+      a.rotation = 0;
+      a.setPosition(i === 0 ? -9.5 : 9.5, -41);
+    });
+  }
+
   update(delta: number, moving: boolean) {
     const dt = delta / 1000;
+
+    if (this.traitAnim) {
+      this.traitPhase += dt;
+      this.animateTrait(this.traitAnim, this.traitPhase);
+      return;
+    }
+
     if (moving) {
       this.walkPhase += dt * 9;
       const swing = Math.sin(this.walkPhase) * 0.5;
@@ -175,6 +210,152 @@ export class CharacterSprite {
       this.leftArm.rotation *= ease;
       this.rightArm.rotation *= ease;
       this.body.y = Math.sin(this.idlePhase) * 0.5;
+    }
+  }
+
+  // One case per trait. Each drives the same five parts — body, two legs,
+  // two arms — plus the container's own rotation for whole-body tilts.
+  private animateTrait(trait: string, p: number) {
+    const L = this.leftLeg;
+    const R = this.rightLeg;
+    const LA = this.leftArm;
+    const RA = this.rightArm;
+    const B = this.body;
+
+    switch (trait) {
+      case "sleeping": {
+        // Tipped over on their side, breathing slowly.
+        const breathe = Math.sin(p * 1.6) * 0.8;
+        this.container.rotation = -Math.PI / 2.1;
+        B.setPosition(breathe, 0);
+        L.rotation = 0.35;
+        R.rotation = 0.2;
+        LA.rotation = -0.5;
+        RA.rotation = 0.3;
+        break;
+      }
+      case "busy working out": {
+        // Squats: drop the body, bend the legs, arms held out front.
+        const squat = (Math.sin(p * 3.4) + 1) / 2; // 0..1
+        B.setPosition(0, squat * 9);
+        L.setPosition(-4.5, -20 + squat * 9);
+        R.setPosition(4.5, -20 + squat * 9);
+        L.rotation = squat * 0.5;
+        R.rotation = -squat * 0.5;
+        LA.setPosition(-9.5, -41 + squat * 9);
+        RA.setPosition(9.5, -41 + squat * 9);
+        LA.rotation = -1.5;
+        RA.rotation = 1.5;
+        break;
+      }
+      case "chewing really loud": {
+        // Jaw working away — quick vertical head-bob, body mostly still.
+        B.setPosition(0, Math.abs(Math.sin(p * 7)) * 1.6);
+        this.container.rotation = Math.sin(p * 7) * 0.03;
+        LA.rotation = -0.25;
+        RA.rotation = 0.25;
+        break;
+      }
+      case "yelling":
+      case "yelling at anyone who is nearby": {
+        // Leaning in, arms flung out, jabbing forward on each shout.
+        const shout = Math.max(0, Math.sin(p * 3.2));
+        this.container.rotation = 0.12 + shout * 0.09;
+        B.setPosition(shout * 2.5, -shout * 1.5);
+        LA.rotation = -2.1 - shout * 0.5;
+        RA.rotation = 2.1 + shout * 0.5;
+        L.rotation = 0.18;
+        R.rotation = -0.28;
+        break;
+      }
+      case "sucking on her toe": {
+        // Crouched right down with one leg hauled up.
+        B.setPosition(0, 14);
+        this.container.rotation = 0.2;
+        L.setPosition(-4.5, -8);
+        L.rotation = -2.4;
+        R.setPosition(4.5, -8);
+        R.rotation = 0.5;
+        LA.setPosition(-9.5, -28);
+        LA.rotation = -2.6 + Math.sin(p * 4) * 0.08;
+        RA.setPosition(9.5, -28);
+        RA.rotation = 2.4;
+        break;
+      }
+      case "making TikTok videos": {
+        // One arm up holding the phone, hips swaying to the beat.
+        const sway = Math.sin(p * 3.6);
+        this.container.rotation = sway * 0.1;
+        B.setPosition(sway * 1.5, 0);
+        RA.rotation = 2.9;
+        LA.rotation = -0.6 + sway * 0.4;
+        L.rotation = sway * 0.2;
+        R.rotation = -sway * 0.2;
+        break;
+      }
+      case "singing": {
+        // Chest out, arms opening wide, swaying on the long notes.
+        const sway = Math.sin(p * 1.9);
+        this.container.rotation = sway * 0.07 - 0.05;
+        B.setPosition(0, -Math.abs(Math.sin(p * 1.9)) * 1.2);
+        LA.rotation = -1.9 - Math.abs(sway) * 0.5;
+        RA.rotation = 1.9 + Math.abs(sway) * 0.5;
+        break;
+      }
+      case "begging for ice cream": {
+        // Bouncing on the spot with both arms up, pleading.
+        const hop = Math.max(0, Math.sin(p * 5.5));
+        B.setPosition(0, -hop * 5);
+        L.setPosition(-4.5, -20 - hop * 5);
+        R.setPosition(4.5, -20 - hop * 5);
+        L.rotation = -hop * 0.3;
+        R.rotation = hop * 0.3;
+        LA.setPosition(-9.5, -41 - hop * 5);
+        RA.setPosition(9.5, -41 - hop * 5);
+        LA.rotation = -2.7;
+        RA.rotation = 2.7;
+        break;
+      }
+      case "playing video games": {
+        // Hunched forward, elbows in, thumbs going.
+        this.container.rotation = 0.16;
+        B.setPosition(0, 5);
+        L.setPosition(-4.5, -15);
+        R.setPosition(4.5, -15);
+        L.rotation = -1.4;
+        R.rotation = -1.4;
+        LA.setPosition(-7, -36);
+        RA.setPosition(7, -36);
+        LA.rotation = -1.3 + Math.sin(p * 14) * 0.12;
+        RA.rotation = 1.3 - Math.sin(p * 14) * 0.12;
+        break;
+      }
+      case "getting drunk": {
+        // Big slow wobble, arms loose, never quite steady.
+        const wobble = Math.sin(p * 1.7) + Math.sin(p * 2.6) * 0.4;
+        this.container.rotation = wobble * 0.22;
+        B.setPosition(wobble * 2.5, 0);
+        LA.rotation = -0.7 + wobble * 0.5;
+        RA.rotation = 0.7 + wobble * 0.5;
+        L.rotation = wobble * 0.2;
+        R.rotation = -wobble * 0.15;
+        break;
+      }
+      case "working at the Dairy Bar": {
+        // Scooping: lean over, one arm digging in circles.
+        const scoop = p * 4;
+        this.container.rotation = 0.14;
+        B.setPosition(0, 2);
+        RA.rotation = 1.6 + Math.sin(scoop) * 0.7;
+        RA.setPosition(9.5 + Math.cos(scoop) * 2, -38);
+        LA.rotation = -0.9;
+        break;
+      }
+      default: {
+        // Unknown trait: gentle idle rather than a frozen T-pose.
+        this.idlePhase += 0.02;
+        B.setPosition(0, Math.sin(this.idlePhase) * 0.5);
+      }
     }
   }
 

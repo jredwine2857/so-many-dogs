@@ -5,7 +5,9 @@
 type Voice = { stop: number };
 
 const MAX_CONCURRENT_VOICES = 6;
-const HEARING_RANGE = 780; // px; past this a character is inaudible
+// The town is 2500px wide and the viewport shows ~1000px of it, so a range
+// much tighter than this means characters you can plainly see make no sound.
+const HEARING_RANGE = 1100;
 
 export class TraitAudio {
   private ctx: AudioContext | null = null;
@@ -140,6 +142,82 @@ export class TraitAudio {
     return { src, f, g };
   }
 
+  /**
+   * Formant synthesis — the reason a shout reads as a human voice rather
+   * than a buzzing sawtooth. A vocal source is fed through parallel bandpass
+   * filters tuned to vowel resonances; those peaks are what the ear decodes
+   * as "a person made this". Roughly the vowel of "ah".
+   */
+  private voice(
+    out: AudioNode,
+    t: number,
+    opts: {
+      dur: number;
+      f0: number[]; // pitch contour, spread evenly across the duration
+      formants: [number, number][]; // [frequency, relative gain]
+      gain: number;
+      vibrato?: number;
+      breath?: number;
+    }
+  ) {
+    const ctx = this.ctx!;
+    const { dur, f0, formants, gain, vibrato = 0, breath = 0 } = opts;
+
+    const src = ctx.createOscillator();
+    src.type = "sawtooth";
+    src.frequency.setValueAtTime(f0[0], t);
+    f0.slice(1).forEach((freq, i) => {
+      src.frequency.linearRampToValueAtTime(freq, t + (dur * (i + 1)) / (f0.length - 1));
+    });
+
+    if (vibrato > 0) {
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 5.5;
+      lfoGain.gain.value = vibrato;
+      lfo.connect(lfoGain).connect(src.frequency);
+      lfo.start(t);
+      lfo.stop(t + dur + 0.05);
+    }
+
+    // Shared amplitude envelope for the whole voice.
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.exponentialRampToValueAtTime(gain, t + 0.05);
+    env.gain.setValueAtTime(gain, t + dur * 0.65);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    env.connect(out);
+
+    formants.forEach(([freq, amp]) => {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = freq;
+      bp.Q.value = 9;
+      const g = ctx.createGain();
+      g.gain.value = amp;
+      src.connect(bp).connect(g).connect(env);
+    });
+
+    if (breath > 0) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noise!;
+      n.loop = true;
+      const nf = ctx.createBiquadFilter();
+      nf.type = "bandpass";
+      nf.frequency.value = 1800;
+      nf.Q.value = 1.2;
+      const ng = ctx.createGain();
+      ng.gain.value = breath;
+      n.connect(nf).connect(ng).connect(env);
+      n.start(t);
+      n.stop(t + dur + 0.05);
+    }
+
+    src.start(t);
+    src.stop(t + dur + 0.05);
+    return src;
+  }
+
   // --- the sounds ---------------------------------------------------------
 
   private snore(out: GainNode, t: number) {
@@ -156,27 +234,80 @@ export class TraitAudio {
   }
 
   private chew(out: GainNode, t: number) {
-    // Wet, crunchy, open-mouthed — this is Jane's whole bit, so it needs to
-    // carry. A wide filter keeps the noise energy that a narrow bandpass eats.
+    // A bite is three things happening in ~120ms: a sharp crunch transient, a
+    // wet squish as the jaw closes, and a soft lip smack. The previous version
+    // was only the crunch, which is why it read as static rather than eating.
+    // Timing is deliberately irregular — evenly spaced bites sound mechanical.
+    const ctx = this.ctx!;
+    let at = t;
+
     for (let i = 0; i < 5; i++) {
-      const at = t + i * 0.17;
-      this.noiseBurst(at, 0.11, out, "bandpass", 1300 + Math.random() * 800, 1.1, 0.95);
-      this.noiseBurst(at + 0.03, 0.08, out, "lowpass", 700, 1, 0.6);
-      this.osc("triangle", 120 + Math.random() * 40, at, 0.07, out, 0.18);
+      // 1. crunch: broadband transient, very short
+      this.noiseBurst(at, 0.045, out, "bandpass", 1100 + Math.random() * 700, 0.9, 0.9);
+
+      // 2. squish: resonant lowpass sweeping downward = the jaw closing
+      const n = ctx.createBufferSource();
+      n.buffer = this.noise!;
+      n.loop = true;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(1500, at + 0.02);
+      lp.frequency.exponentialRampToValueAtTime(260, at + 0.13);
+      lp.Q.value = 7; // resonance is what makes it sound wet
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.75, at + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
+      n.connect(lp).connect(g).connect(out);
+      n.start(at + 0.02);
+      n.stop(at + 0.2);
+
+      // 3. lip smack on some bites, high and brief
+      if (i % 2 === 1) {
+        this.noiseBurst(at + 0.1, 0.03, out, "highpass", 2600, 0.7, 0.5);
+      }
+
+      at += 0.15 + Math.random() * 0.11;
     }
-    return 1.0;
+    return at - t + 0.2;
   }
 
   private yell(out: GainNode, t: number, intensity: number) {
-    const base = 240 * intensity;
-    const { o } = this.osc("sawtooth", base, t, 0.62, out, 0.26 * intensity);
-    o.frequency.setValueAtTime(base, t);
-    o.frequency.linearRampToValueAtTime(base * 1.5, t + 0.12);
-    o.frequency.linearRampToValueAtTime(base * 0.85, t + 0.62);
-    // vowel-ish formant
-    this.noiseBurst(t, 0.6, out, "bandpass", 900 * intensity, 6, 0.2);
-    this.osc("square", base * 2, t + 0.02, 0.5, out, 0.07);
-    return 0.9;
+    // "HEY!" — a real shout, via formant synthesis. The pitch leaps up on the
+    // attack then falls away, and the vowel formants are what make it read as
+    // a voice instead of a buzzer.
+    const base = 230 * intensity;
+    this.voice(out, t, {
+      dur: 0.55,
+      f0: [base * 0.85, base * 1.45, base * 1.25, base * 0.8],
+      // "ah" vowel, pushed up slightly for a strained/shouted quality
+      formants: [
+        [780 * intensity, 1.0],
+        [1250 * intensity, 0.7],
+        [2800, 0.32],
+        [3600, 0.16],
+      ],
+      gain: 0.85 * intensity,
+      vibrato: 7,
+      breath: 0.1,
+    });
+
+    // A second shorter syllable makes it sound like someone actually
+    // hollering at you rather than a single held note.
+    this.voice(out, t + 0.72, {
+      dur: 0.34,
+      f0: [base * 1.15, base * 1.35, base * 0.95],
+      formants: [
+        [700 * intensity, 1.0],
+        [1150 * intensity, 0.65],
+        [2650, 0.28],
+      ],
+      gain: 0.7 * intensity,
+      vibrato: 9,
+      breath: 0.09,
+    });
+
+    return 1.2;
   }
 
   private workout(out: GainNode, t: number) {
@@ -209,39 +340,43 @@ export class TraitAudio {
   }
 
   private singing(out: GainNode, t: number) {
-    // three sustained notes with vibrato
-    const ctx = this.ctx!;
+    // Three sung notes on an "ah". Same formant model as the yell, but
+    // gentler and in tune — a sine would have sounded like a test tone.
     const notes = [392, 440, 523];
     notes.forEach((freq, i) => {
-      const at = t + i * 0.42;
-      const { o } = this.osc("sine", freq, at, 0.4, out, 0.2);
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      lfo.frequency.value = 5.5;
-      lfoGain.gain.value = 5;
-      lfo.connect(lfoGain).connect(o.frequency);
-      lfo.start(at);
-      lfo.stop(at + 0.45);
-      this.osc("triangle", freq * 2, at, 0.38, out, 0.05);
+      this.voice(out, t + i * 0.42, {
+        dur: 0.4,
+        f0: [freq * 0.99, freq, freq * 1.005],
+        formants: [
+          [730, 1.0],
+          [1090, 0.6],
+          [2440, 0.25],
+        ],
+        gain: 0.95,
+        vibrato: 6,
+        breath: 0.04,
+      });
     });
     return 1.5;
   }
 
   private whine(out: GainNode, t: number) {
-    // pleading, rising-then-falling "pleeease"
-    const { o } = this.osc("triangle", 420, t, 0.85, out, 0.22);
-    o.frequency.setValueAtTime(420, t);
-    o.frequency.linearRampToValueAtTime(620, t + 0.35);
-    o.frequency.linearRampToValueAtTime(390, t + 0.85);
-    const ctx = this.ctx!;
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 7;
-    lfoGain.gain.value = 18;
-    lfo.connect(lfoGain).connect(o.frequency);
-    lfo.start(t);
-    lfo.stop(t + 0.9);
-    return 1.1;
+    // "pleeeease" — a child's whine: higher pitch, a big rise-and-fall, and
+    // heavy vibrato for the wobble that makes it read as pleading.
+    this.voice(out, t, {
+      dur: 0.9,
+      f0: [430, 640, 600, 400],
+      // "eh"-ish vowel: closer to a whine than the open "ah" of a shout
+      formants: [
+        [560, 1.0],
+        [1900, 0.75],
+        [2600, 0.3],
+      ],
+      gain: 0.62,
+      vibrato: 16,
+      breath: 0.05,
+    });
+    return 1.15;
   }
 
   private iceCreamJingle(out: GainNode, t: number) {

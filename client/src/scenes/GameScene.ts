@@ -6,6 +6,7 @@ import { CharacterView, SyncedCharacter } from "../entities/CharacterView";
 import { VisitorView, SyncedVisitor } from "../entities/VisitorView";
 import { PetSprite } from "../entities/PetSprite";
 import { TraitAudio } from "../audio/TraitAudio";
+import { CharacterSelect } from "../ui/CharacterSelect";
 import { drawBuilding, drawHome, drawTerrain } from "../world/render";
 
 const VIEW_W = 1024;
@@ -44,6 +45,7 @@ export class GameScene extends Phaser.Scene {
   private visitorViews = new Map<string, VisitorView>();
   private pets = new Map<string, PetSprite>();
   private localCharacterId: string | null = null;
+  private select: CharacterSelect | null = null;
   private gameOver = false;
 
   private keyUp!: Phaser.Input.Keyboard.Key;
@@ -143,6 +145,18 @@ export class GameScene extends Phaser.Scene {
     $(this.room.state).listen("gameOver", (value: boolean) => {
       if (value) this.showEndOverlay();
     });
+
+    // Nothing is claimed on join any more — you choose who to be.
+    this.select = new CharacterSelect(this, (characterId) => {
+      this.room.send("selectCharacter", { characterId });
+    });
+    this.room.onMessage("selectionRejected", (msg: { characterId: string }) => {
+      const name = CHARACTERS[msg.characterId]?.name ?? "That character";
+      this.select?.showMessage(`${name} was just taken — pick someone else.`);
+    });
+
+    // Park the camera over the middle of town while choosing.
+    this.cameras.main.setScroll(WORLD.width / 2 - VIEW_W / 2, 430);
   }
 
   private buildHud() {
@@ -263,11 +277,24 @@ export class GameScene extends Phaser.Scene {
     const state = this.room.state as any;
     if (!state?.characters || !state?.visitors) return;
 
-    // The local character is assigned server-side on join; it may arrive a
-    // frame or two after the state does.
+    // The server confirms ownership; until then the select screen is up.
     if (!this.localCharacterId) this.resolveLocalCharacter();
 
-    if (!this.gameOver) {
+    if (this.select?.isVisible) {
+      if (this.localCharacterId) {
+        this.select.hide();
+        this.select = null;
+      } else {
+        const taken = new Set<string>();
+        state.characters.forEach((c: SyncedCharacter, id: string) => {
+          if (c.controlledBy !== "") taken.add(id);
+        });
+        this.select.refresh(taken);
+      }
+    }
+
+    // No character yet means no input to send — just watch the town.
+    if (!this.gameOver && this.localCharacterId) {
       this.sendInput();
       this.sendActions();
     }
