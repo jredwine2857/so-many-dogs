@@ -20,3 +20,21 @@ variable "github_repo" {
   type        = string
   default     = "so-many-dogs"
 }
+
+# GitHub's OIDC subject claim now includes immutable numeric IDs alongside
+# the names. Find them with:
+#   gh api user --jq .id
+#   gh api repos/OWNER/REPO --jq .id
+# Leave as "*" to match any ID, which is less precise but still scoped to
+# this owner/repo name.
+variable "github_owner_id" {
+  description = "Numeric GitHub user/org ID, or * to accept any."
+  type        = string
+  default     = "34180339"
+}
+
+variable "github_repository_id" {
+  description = "Numeric GitHub repository ID, or * to accept any."
+  type        = string
+  default     = "1323517686"
+}

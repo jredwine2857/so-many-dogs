@@ -105,10 +105,24 @@ data "aws_iam_policy_document" "ci_assume" {
 
     # Scoped to this repository only — any other repo presenting a valid
     # GitHub token still can't assume this role.
+    #
+    # Two patterns, because GitHub changed the subject format. It now embeds
+    # immutable numeric IDs:
+    #
+    #   repo:owner@34180339/repo@1323517686:ref:refs/heads/main
+    #
+    # rather than the classic `repo:owner/repo:ref:...`. Pinning those IDs is
+    # the stronger option — GitHub usernames can be released and re-registered
+    # by someone else, but the numeric IDs are never reused. The name-only
+    # pattern is kept as a fallback in case a given context still emits the
+    # old format.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}/${var.github_repo}:*"]
+      values = [
+        "repo:${var.github_owner}/${var.github_repo}:*",
+        "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repository_id}:*",
+      ]
     }
   }
 }
