@@ -106,6 +106,7 @@ export class TraitAudio {
       case "scolding people": return this.scold(out, t0);
       case "turning into a monkey and eating bananas": return this.monkey(out, t0);
       case "asking Hey a bunch": return this.hey(out, t0);
+      case "running a marathon": return this.running(out, t0);
       default: return 0;
     }
   }
@@ -503,6 +504,45 @@ export class TraitAudio {
       });
     });
     return 1.5;
+  }
+
+  private running(out: GainNode, t: number) {
+    // Footfalls on pavement plus breathing, deliberately out of step with
+    // each other — runners breathe roughly every other stride, and locking
+    // them together sounds like a machine rather than a person.
+    const ctx = this.ctx!;
+    const stride = 0.31;
+
+    for (let i = 0; i < 5; i++) {
+      const at = t + i * stride;
+      // heel strike: short low thud with a fast pitch drop
+      const { o } = this.osc("sine", 150, at, 0.09, out, 0.42);
+      o.frequency.exponentialRampToValueAtTime(58, at + 0.08);
+      // grit of shoe on road
+      this.noiseBurst(at, 0.06, out, "bandpass", 2400, 1.1, 0.3);
+    }
+
+    // two breaths across the same span, offset from the footfalls
+    [0.16, 0.78].forEach((offset, i) => {
+      const at = t + offset;
+      const n = ctx.createBufferSource();
+      n.buffer = this.noise!;
+      n.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.setValueAtTime(i === 0 ? 700 : 520, at);
+      bp.frequency.linearRampToValueAtTime(i === 0 ? 1300 : 380, at + 0.3);
+      bp.Q.value = 1.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.linearRampToValueAtTime(0.5, at + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.34);
+      n.connect(bp).connect(g).connect(out);
+      n.start(at);
+      n.stop(at + 0.4);
+    });
+
+    return 1.7;
   }
 
   private hiccup(out: GainNode, t: number) {

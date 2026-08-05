@@ -396,6 +396,24 @@ export class CharacterSprite {
         RA.rotation = 2.4 + swing * 0.6;
         break;
       }
+      case "running a marathon": {
+        // Running on the spot: much faster than the walk cycle, knees driven
+        // higher and arms pumping hard, with a bounce on each stride.
+        const stride = p * 11;
+        const swing = Math.sin(stride);
+        const bounce = Math.abs(Math.sin(stride));
+        this.container.rotation = 0.1; // leaning into it
+        B.setPosition(0, -bounce * 2.5);
+        L.setPosition(-4.5, -20 - bounce * 2.5);
+        R.setPosition(4.5, -20 - bounce * 2.5);
+        L.rotation = swing * 1.15;
+        R.rotation = -swing * 1.15;
+        LA.setPosition(-9.5, -41 - bounce * 2.5);
+        RA.setPosition(9.5, -41 - bounce * 2.5);
+        LA.rotation = -1.2 - swing * 0.9;
+        RA.rotation = 1.2 - swing * 0.9;
+        break;
+      }
       case "asking Hey a bunch": {
         // Waving to get your attention, over and over.
         const wave = Math.sin(p * 6.5);

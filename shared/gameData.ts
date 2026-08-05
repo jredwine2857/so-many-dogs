@@ -262,6 +262,16 @@ export const CHARACTERS: Record<string, CharacterDef> = {
     pronoun: "he",
     appearance: { skin: 0xe8b48c, hair: 0x5a4028, hairStyle: "buzz", top: 0x6aa84f, bottom: 0x2f3440, shoes: 0x22262e, accessory: "none", child: false },
   },
+  jascia: {
+    id: "jascia",
+    name: "Jascia",
+    career: CAREERS.education,
+    annoyingTrait: "running a marathon",
+    petId: "aichan",
+    accent: 0xff8f5a,
+    pronoun: "she",
+    appearance: { skin: 0xd9a074, hair: 0x2b1d14, hairStyle: "ponytail", top: 0xff8f5a, bottom: 0x2c3550, shoes: 0xf2f6fb, accessory: "headband", child: false },
+  },
 };
 
 // Roster order — also the order joining clients claim characters in.
@@ -269,7 +279,7 @@ export const CHARACTER_ORDER = [
   "jason", "jane", "kayli", "jonathan", "payton", "brooklin",
   "kelli", "grace", "tomas", "junior", "isla",
   "ambria", "michael", "jordyn",
-  "stephen", "mari", "xavier", "mia", "parker",
+  "stephen", "mari", "xavier", "mia", "parker", "jascia",
 ];
 
 export const PETS: Record<string, PetDef> = {
@@ -300,6 +310,7 @@ export const PETS: Record<string, PetDef> = {
   fritzie:  { id: "fritzie",  name: "Fritzie",    species: "dog",       size: "small",  coat: 0xe6dff5, fluffy: false, floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 1.1, energyDecayMultiplier: 1.0, happinessVolatility: 1, ghost: true },
   tiffany:  { id: "tiffany",  name: "Tiffany",    species: "dog",       size: "medium", coat: 0xf2e6f0, fluffy: true,  floppyEars: false, hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 0.9, energyDecayMultiplier: 1.1, happinessVolatility: 1, ghost: true },
   jewel:    { id: "jewel",    name: "Jewel",      species: "dog",       size: "medium", coat: 0xdff0f5, fluffy: false, floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 1.0, energyDecayMultiplier: 0.9, happinessVolatility: 1, ghost: true },
+  aichan:   { id: "aichan",   name: "Aichan",     species: "dog",       size: "small",  coat: 0xe8eef7, fluffy: true,  floppyEars: true,  hungerDecayMultiplier: 0.9, bladderDecayMultiplier: 1.0, energyDecayMultiplier: 1.0, happinessVolatility: 1, ghost: true },
 };
 
 // Grandparents. They aren't playable — no home, no pet, no job, and they

@@ -126,7 +126,11 @@ async function main() {
   )!;
   const npcStart = { x: charOf(roomA, npcId).x, y: charOf(roomA, npcId).y };
   let sawActivity = false;
-  for (let i = 0; i < 30; i++) {
+  // Must span a whole walk-then-pause cycle. An NPC can idle for up to
+  // npcPauseMax (9s) before moving at all, so a shorter window can catch it
+  // standing still for the entire sample and wrongly report it never wanders.
+  const npcWatchMs = TUNING.npcPauseMaxMs + 16_000;
+  for (let i = 0; i < npcWatchMs / 300; i++) {
     await sleep(300);
     if (charOf(roomA, npcId).activity) sawActivity = true;
   }
