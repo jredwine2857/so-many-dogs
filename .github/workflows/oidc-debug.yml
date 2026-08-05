@@ -1,0 +1,52 @@
+name: OIDC debug
+
+# Temporary diagnostic. Prints the claims GitHub puts in the OIDC token so we
+# can compare them against the IAM role's trust policy. Only decodes the
+# payload — the token itself is never printed.
+#
+# Delete this workflow once the AWS role assumption works.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # Same shape as the real jobs: gated on an environment, which changes the
+  # "sub" claim to repo:OWNER/REPO:environment:NAME.
+  with-environment:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Show token claims
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          # base64url -> base64, pad to a multiple of 4
+          PAYLOAD=$(echo "$PAYLOAD" | tr '_-' '/+')
+          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
+          echo "$PAYLOAD" | base64 -d | jq '{iss, aud, sub, repository, repository_owner, ref, environment}'
+
+  # No environment, so "sub" is repo:OWNER/REPO:ref:refs/heads/main. If this
+  # one can assume the role and the gated one can't, the environment is the
+  # difference.
+  without-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show token claims
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          PAYLOAD=$(echo "$PAYLOAD" | tr '_-' '/+')
+          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
+          echo "$PAYLOAD" | base64 -d | jq '{iss, aud, sub, repository, repository_owner, ref}'
+
+      - name: Try assuming the role without an environment
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
